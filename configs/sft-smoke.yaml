@@ -1,0 +1,67 @@
+### 基座模型
+model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+trust_remote_code: true
+flash_attn: sdpa
+upcast_layernorm: true
+
+### QLoRA：4-bit 基础模型 + LoRA
+quantization_bit: 4
+quantization_method: bitsandbytes
+quantization_type: nf4
+double_quantization: true
+
+### SFT
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.05
+
+### 官方中文示例数据集（随固定版本的 LLaMA-Factory 镜像分发）
+dataset_dir: /app/data
+dataset: alpaca_zh_demo
+max_samples: 100
+template: qwen
+cutoff_len: 1024
+packing: false
+overwrite_cache: true
+preprocessing_num_workers: 1
+dataloader_num_workers: 0
+
+### 10% 验证集与评估
+val_size: 0.1
+per_device_eval_batch_size: 1
+eval_strategy: steps
+eval_steps: 10
+
+### 输出与 Checkpoint
+output_dir: /workspace/output/qwen25-3b-sft-smoke-official
+overwrite_output_dir: true
+logging_steps: 1
+save_strategy: steps
+save_steps: 10
+save_total_limit: 2
+load_best_model_at_end: true
+metric_for_best_model: eval_loss
+greater_is_better: false
+plot_loss: true
+report_to: none
+
+### 训练参数
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 1
+learning_rate: 1.0e-4
+num_train_epochs: 1
+lr_scheduler_type: cosine
+warmup_steps: 5
+gradient_checkpointing: true
+max_grad_norm: 1.0
+
+### Tesla T4 使用 FP16
+fp16: true
+bf16: false
+
+optim: paged_adamw_8bit
+seed: 42

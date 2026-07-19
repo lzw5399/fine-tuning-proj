@@ -1,0 +1,4 @@
+**
+!docker/
+!docker/llamafactory/
+!docker/llamafactory/Dockerfile

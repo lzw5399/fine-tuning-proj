@@ -1,0 +1,51 @@
+name: ${COMPOSE_PROJECT_NAME:-qwen-sft}
+
+services:
+  llamafactory:
+    build:
+      context: .
+      dockerfile: docker/llamafactory/Dockerfile
+      args:
+        LLAMAFACTORY_BASE_IMAGE: ${LLAMAFACTORY_BASE_IMAGE:-hiyouga/llamafactory@sha256:cde9745570861693a8a0e7da6aa1a1fadde7c728b8ceeb189191ddc3a3a8d3f3}
+        BITSANDBYTES_VERSION: ${BITSANDBYTES_VERSION:-0.49.2}
+    image: ${LLAMAFACTORY_IMAGE:-qwen-sft-llamafactory:local}
+    restart: unless-stopped
+    ipc: host
+
+    ports:
+      - "${WEBUI_BIND_ADDRESS:-127.0.0.1}:${WEBUI_PORT:-7860}:7860"
+
+    environment:
+      GRADIO_SERVER_NAME: "0.0.0.0"
+      GRADIO_SERVER_PORT: "7860"
+      GRADIO_SHARE: "False"
+      GRADIO_ANALYTICS_ENABLED: "False"
+
+    volumes:
+      - type: bind
+        source: ${HF_CACHE_DIR:-./.cache/huggingface}
+        target: /root/.cache/huggingface
+      - type: bind
+        source: ./configs
+        target: /workspace/configs
+        read_only: true
+      - type: bind
+        source: ${DATA_DIR:-./data}
+        target: /workspace/data
+        read_only: true
+      - type: bind
+        source: ${OUTPUT_DIR:-./output}
+        target: /workspace/output
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+
+    command:
+      - llamafactory-cli
+      - webui

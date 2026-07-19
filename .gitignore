@@ -1,1 +1,42 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
 **/.prod.env
+**/.gpu-machine.env
+
+# Runtime caches and generated training artifacts
+.cache/
+hf-cache/
+models/
+output/
+outputs/
+checkpoints/
+logs/
+runs/
+wandb/
+mlruns/
+
+# Model and trainer artifacts
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+trainer_state.json
+all_results.json
+train_results.json
+trainer_log.jsonl
+training_loss.png
+
+# Real datasets stay outside Git by default. Keep only the registry,
+# documentation, and the tiny schema fixture maintained by this repository.
+data/*
+!data/README.md
+!data/dataset_info.json
+!data/my_sft.json
+
+# Local tooling
+.DS_Store
+__pycache__/
+*.pyc

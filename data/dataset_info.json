@@ -1,0 +1,10 @@
+{
+  "my_sft": {
+    "file_name": "my_sft.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "system": "system"
+    }
+  }
+}
