@@ -1,0 +1,60 @@
+name: qwen-vllm
+
+services:
+  vllm:
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:v0.8.5}
+    restart: unless-stopped
+    ipc: host
+
+    ports:
+      - "${VLLM_BIND_ADDRESS:-127.0.0.1}:${VLLM_PORT:-8000}:8000"
+
+    environment:
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_DISABLE_TELEMETRY: "1"
+
+    volumes:
+      - type: bind
+        source: ${HF_CACHE_DIR:-./.cache/huggingface}
+        target: /root/.cache/huggingface
+      - type: bind
+        source: ${OUTPUT_DIR:-./output}
+        target: /workspace/output
+        read_only: true
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+
+    command:
+      - --model
+      - ${VLLM_BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}
+      - --served-model-name
+      - ${VLLM_BASE_MODEL_NAME:-qwen-base}
+      - --enable-lora
+      - --lora-modules
+      - ${VLLM_LORA_NAME:-qwen-dpo}=/workspace/output/${VLLM_LORA_DIR:-qwen25-3b-dpo-lora}
+      - --max-lora-rank
+      - ${VLLM_MAX_LORA_RANK:-8}
+      - --dtype
+      - half
+      - --max-model-len
+      - ${VLLM_MAX_MODEL_LEN:-4096}
+      - --gpu-memory-utilization
+      - ${VLLM_GPU_MEMORY_UTILIZATION:-0.90}
+
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 120s

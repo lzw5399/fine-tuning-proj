@@ -5,9 +5,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 cd "$REPO_ROOT"
 
-bash -n scripts/train.sh scripts/validate.sh
+bash -n scripts/train.sh scripts/serve-vllm.sh scripts/validate.sh
 
-yaml_files=(compose.yaml configs/sft.yaml configs/dpo.yaml)
+yaml_files=(compose.train.yaml compose.vllm.yaml configs/sft.yaml configs/dpo.yaml)
 
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
   python3 -c 'import sys, yaml; values = [yaml.safe_load(open(path, encoding="utf-8")) for path in sys.argv[1:]]; assert all(isinstance(value, dict) for value in values)' \
@@ -59,8 +59,17 @@ for config_path in configs/sft.yaml configs/dpo.yaml; do
   grep -Eq '^upcast_layernorm: true$' "$config_path"
 done
 
+grep -Fq 'docker compose -p qwen-sft -f compose.train.yaml run' scripts/train.sh
+grep -Fq 'read_only: true' compose.vllm.yaml
+# Compose expressions must remain literal here.
+# shellcheck disable=SC2016
+grep -Fq '${VLLM_LORA_NAME:-qwen-dpo}=/workspace/output/${VLLM_LORA_DIR:-qwen25-3b-dpo-lora}' compose.vllm.yaml
+grep -Fq -- '--enable-lora' compose.vllm.yaml
+grep -Fq -- '--max-lora-rank' compose.vllm.yaml
+
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-  docker compose --env-file .env.example config --quiet
+  docker compose --env-file .env.example -p qwen-sft -f compose.train.yaml config --quiet
+  docker compose --env-file .env.example -p qwen-vllm -f compose.vllm.yaml config --quiet
 else
   printf 'Docker Compose not found; skipped Compose semantic validation.\n' >&2
 fi

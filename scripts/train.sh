@@ -30,5 +30,5 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
 fi
 
 cd "$REPO_ROOT"
-exec docker compose run --rm --no-deps llamafactory \
+exec docker compose -p qwen-sft -f compose.train.yaml run --rm --no-deps llamafactory \
   llamafactory-cli train "/workspace/${CONFIG_PATH}"
