@@ -1,6 +1,6 @@
 CONFIG ?= configs/sft.yaml
 
-.PHONY: help validate build up down logs ps smoke train
+.PHONY: help validate build up down logs ps train train-sft train-dpo
 
 help:
 	@printf '%s\n' \
@@ -10,8 +10,9 @@ help:
 	  'make down                        Stop this Compose project' \
 	  'make logs                        Follow WebUI logs' \
 	  'make ps                          Show Compose service status' \
-	  'make smoke                       Run the bounded official-data smoke SFT' \
-	  'make train                       Run configs/sft.yaml' \
+	  'make train                       Run CONFIG (defaults to configs/sft.yaml)' \
+	  'make train-sft                   Run configs/sft.yaml explicitly' \
+	  'make train-dpo                   Run configs/dpo.yaml explicitly' \
 	  'make train CONFIG=configs/x.yaml Run another repository config'
 
 validate:
@@ -32,8 +33,11 @@ logs:
 ps:
 	docker compose ps
 
-smoke:
-	@./scripts/train.sh configs/sft-smoke.yaml
-
 train:
 	@./scripts/train.sh "$(CONFIG)"
+
+train-sft:
+	@./scripts/train.sh configs/sft.yaml
+
+train-dpo:
+	@./scripts/train.sh configs/dpo.yaml

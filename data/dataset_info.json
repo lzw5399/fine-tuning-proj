@@ -6,5 +6,16 @@
       "messages": "conversations",
       "system": "system"
     }
+  },
+  "my_dpo": {
+    "file_name": "my_dpo.jsonl",
+    "formatting": "sharegpt",
+    "ranking": true,
+    "columns": {
+      "messages": "conversations",
+      "chosen": "chosen",
+      "rejected": "rejected",
+      "system": "system"
+    }
   }
 }

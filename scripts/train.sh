@@ -7,7 +7,7 @@ CONFIG_PATH="${1:-configs/sft.yaml}"
 CONFIG_PATH="${CONFIG_PATH#./}"
 
 case "$CONFIG_PATH" in
-  /*|*../*|../*|*'/..')
+  /*|..|../*|*/..|*/../*)
     printf 'Config path must stay inside the repository: %s\n' "$CONFIG_PATH" >&2
     exit 2
     ;;

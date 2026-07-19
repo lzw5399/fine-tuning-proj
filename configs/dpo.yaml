@@ -1,0 +1,126 @@
+### 基座模型与 SFT Adapter
+# 必须与前置 SFT 使用同一基座模型，避免 tokenizer 和权重结构不一致。
+model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+# 从已完成的 SFT LoRA Adapter 开始做偏好优化；运行 DPO 前必须确认该目录存在。
+adapter_name_or_path: /workspace/output/qwen25-3b-sft-lora
+# DPO 的冻结参考模型；显式指定后不会错误地退回未经过 SFT 的纯基座策略。
+ref_model: Qwen/Qwen2.5-3B-Instruct
+# 为冻结参考模型加载同一份 SFT Adapter，使 policy/reference 在 DPO 开始时完全一致。
+ref_model_adapters: /workspace/output/qwen25-3b-sft-lora
+# 参考模型也使用 4-bit 加载，避免双模型 DPO 在 T4 上占用过多权重显存。
+ref_model_quantization_bit: 4
+# 允许加载可信模型仓库提供的自定义代码；生产环境建议同时固定模型 revision。
+trust_remote_code: true
+# 使用 PyTorch 原生 SDPA；Tesla T4 上比额外依赖 FlashAttention 2 更稳妥。
+flash_attn: sdpa
+# 将 LayerNorm 等数值敏感计算提升到 FP32，降低 FP16 训练发生溢出的风险。
+upcast_layernorm: true
+
+### QLoRA：4-bit 基础模型 + LoRA
+# 以 4-bit 加载冻结的基座权重，降低 DPO 同时计算 chosen/rejected 时的显存压力。
+quantization_bit: 4
+# 使用 bitsandbytes 量化后端，需与远端 CUDA、驱动和固定依赖版本兼容。
+quantization_method: bitsandbytes
+# NF4 通常比 FP4 更适合量化预训练权重。
+quantization_type: nf4
+# 对量化常数再次量化，进一步节省少量显存。
+double_quantization: true
+
+### DPO 与 LoRA
+# 训练阶段设为 dpo，明确区别于 configs/sft.yaml 的 sft 阶段。
+stage: dpo
+# 启用训练流程。
+do_train: true
+# 使用 LoRA 做参数高效偏好优化；输出仍是 Adapter，而不是完整基座模型。
+finetuning_type: lora
+# 对所有受支持线性层训练 LoRA；显存不足时可缩小到注意力投影层。
+lora_target: all
+# LoRA 低秩维度；与 SFT 保持一致，便于控制容量和显存。
+lora_rank: 8
+# LoRA 缩放系数；此处 alpha/rank 为 2。
+lora_alpha: 16
+# LoRA 分支 dropout；小数据集下用于一定程度的正则化。
+lora_dropout: 0.05
+# DPO 偏好强度系数；值越大越约束策略不要偏离参考策略，0.1 是常用起点。
+pref_beta: 0.1
+# 标准 DPO sigmoid 损失；更换 ipo、orpo 等损失前应先确认当前 LLaMA-Factory 版本支持。
+pref_loss: sigmoid
+
+### 成对偏好数据集
+# 目录内必须包含 dataset_info.json 及注册的 JSONL 数据文件。
+dataset_dir: /workspace/data
+# dataset_info.json 中 ranking=true 的偏好数据集名称。
+dataset: my_dpo
+# 必须与 Qwen2.5 对话格式一致，确保 prompt 和回答使用正确 special tokens。
+template: qwen
+# prompt 加 chosen/rejected 回答的最大 token 数；DPO 两个分支会放大长序列显存开销。
+cutoff_len: 1024
+# 调试数据时重建缓存；数据稳定后建议设为 false 以缩短启动时间。
+overwrite_cache: true
+# 数据预处理并行进程数；按 CPU 和内存容量调整。
+preprocessing_num_workers: 4
+# 0 使用主进程加载数据，兼容性最好；确认 I/O 成为瓶颈后再增加。
+dataloader_num_workers: 0
+
+### 验证与评估
+# 划分 10% 偏好对作为验证集；正式数据应避免同一 prompt 的近重复样本跨训练/验证集泄漏。
+val_size: 0.1
+# 每张 GPU 的评估 batch size；DPO 单条样本包含 chosen/rejected 两个分支，显存开销高于 SFT。
+per_device_eval_batch_size: 1
+# 按 optimizer step 触发评估。
+eval_strategy: steps
+# 每 100 个 optimizer step 评估一次；应根据正式数据规模调整。
+eval_steps: 100
+
+### 输出与 Checkpoint
+# DPO 使用独立输出目录，禁止覆盖作为输入的 SFT Adapter。
+output_dir: /workspace/output/qwen25-3b-dpo-lora
+# 防止意外覆盖已有 DPO 实验；新实验建议使用独立目录。
+overwrite_output_dir: false
+# 每 5 个 optimizer step 记录一次训练日志。
+logging_steps: 5
+# 按 optimizer step 保存 checkpoint。
+save_strategy: steps
+# 与 eval_steps 对齐，保证每个候选 checkpoint 都有可比较的验证指标。
+save_steps: 100
+# 只保留最近两个常规 checkpoint，限制磁盘增长。
+save_total_limit: 2
+# 训练结束后恢复验证损失最小的 DPO checkpoint。
+load_best_model_at_end: true
+# 使用验证损失选择最佳 checkpoint。
+metric_for_best_model: eval_loss
+# eval_loss 越小越好。
+greater_is_better: false
+# 输出损失曲线，辅助判断收敛和过拟合。
+plot_loss: true
+# 默认不向外部平台发送指标或潜在敏感信息。
+report_to: none
+
+### 优化与训练步数
+# T4 单卡从 batch size 1 起步；DPO 通常比同长度 SFT 更占显存。
+per_device_train_batch_size: 1
+# 单卡有效 batch size 为 1 × 16 = 16 个偏好对。
+gradient_accumulation_steps: 16
+# DPO 通常使用比 SFT 更小的学习率，降低偏好过拟合和能力退化风险。
+learning_rate: 5.0e-6
+# 遍历偏好数据 3 次；应结合验证损失和人工评测决定是否提前停止。
+num_train_epochs: 3
+# 预热后使用余弦学习率衰减。
+lr_scheduler_type: cosine
+# 前 5% optimizer steps 线性预热。
+warmup_ratio: 0.05
+# 以额外计算换取更低激活显存，T4 上建议开启。
+gradient_checkpointing: true
+# 裁剪梯度范数，缓解偶发梯度爆炸。
+max_grad_norm: 1.0
+
+### Tesla T4 精度
+# T4 原生支持 FP16 Tensor Core。
+fp16: true
+# T4 不原生支持 BF16，因此关闭。
+bf16: false
+
+# 分页 8-bit AdamW 可降低优化器状态显存并减少显存峰值。
+optim: paged_adamw_8bit
+# 固定随机种子以改善数据划分和训练复现性。
+seed: 42
