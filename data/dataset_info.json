@@ -1,6 +1,6 @@
 {
   "my_sft": {
-    "file_name": "my_sft.json",
+    "file_name": "my_sft.jsonl",
     "formatting": "sharegpt",
     "columns": {
       "messages": "conversations",

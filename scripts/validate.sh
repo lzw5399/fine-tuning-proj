@@ -23,8 +23,8 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 127
 fi
 
-jq -e 'has("my_sft") and (.my_sft.file_name == "my_sft.json")' data/dataset_info.json >/dev/null
-jq -e 'type == "array" and length == 2 and all(.[]; has("system") and has("conversations"))' data/my_sft.json >/dev/null
+jq -e 'has("my_sft") and (.my_sft.file_name == "my_sft.jsonl")' data/dataset_info.json >/dev/null
+jq -se 'length == 2 and all(.[]; has("system") and has("conversations"))' data/my_sft.jsonl >/dev/null
 
 grep -Eq '^dataset: alpaca_zh_demo$' configs/sft-smoke.yaml
 [[ "$(grep -hE '^val_size: 0\.1$' configs/sft-smoke.yaml configs/sft.yaml | wc -l | tr -d ' ')" -eq 2 ]]

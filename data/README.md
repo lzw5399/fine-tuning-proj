@@ -1,6 +1,6 @@
 # 数据集目录
 
-`dataset_info.json` 是项目自己的 LLaMA-Factory 数据集注册表。`my_sft.json` 是从远端同步的两条 ShareGPT 格式样例，只用于验证字段结构，不能作为正式训练数据。
+`dataset_info.json` 是项目自己的 LLaMA-Factory 数据集注册表。`my_sft.jsonl` 是两条 ShareGPT 格式样例，每行一个完整 JSON 对象，只用于验证字段结构，不能作为正式训练数据。
 
 正式数据通常较大或包含敏感内容，默认不会提交到 Git。新增数据时：
 

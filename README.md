@@ -28,7 +28,7 @@
 │   └── sft.yaml                    # 项目数据的正式 SFT 配置
 ├── data/
 │   ├── dataset_info.json           # 项目数据集注册表
-│   └── my_sft.json                 # 两条格式样例，不是正式数据
+│   └── my_sft.jsonl                # JSONL 格式的两条样例，不是正式数据
 ├── scripts/
 │   ├── train.sh                    # 受约束的训练入口
 │   └── validate.sh                 # 非训练静态检查
@@ -117,7 +117,7 @@ make train CONFIG=configs/example.yaml
 
 ## 接入真实数据
 
-当前 `data/my_sft.json` 只有两条结构样例，不能用于正式微调。接入真实数据时：
+当前 `data/my_sft.jsonl` 只有两条结构样例，不能用于正式微调。接入真实数据时：
 
 1. 将数据放入远端 `${DATA_DIR}`，不要把敏感或大型语料提交到 Git。
 2. 在 `data/dataset_info.json` 注册数据文件与字段映射。

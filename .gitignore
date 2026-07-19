@@ -34,7 +34,7 @@ training_loss.png
 data/*
 !data/README.md
 !data/dataset_info.json
-!data/my_sft.json
+!data/my_sft.jsonl
 
 # Local tooling
 .DS_Store
