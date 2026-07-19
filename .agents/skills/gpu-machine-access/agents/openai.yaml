@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPU Machine Access"
+  short_description: "Connect to and operate a remote GPU machine"
+  default_prompt: "Use $gpu-machine-access to inspect GPU availability and health on the configured machine."
