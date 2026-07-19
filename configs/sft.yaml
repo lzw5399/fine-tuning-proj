@@ -1,66 +1,116 @@
 ### 基座模型
+# Hugging Face 模型 ID 或本地模型目录；正式训练前建议先固定并记录模型 revision，避免上游更新影响复现。
 model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+# 允许执行模型仓库提供的自定义代码；只应对可信且最好已固定 revision 的仓库开启。
 trust_remote_code: true
+# 注意力实现；sdpa 使用 PyTorch 原生缩放点积注意力，兼容性通常比额外安装 FlashAttention 更好。
 flash_attn: sdpa
+# 将 LayerNorm 等数值敏感计算提升到 FP32，有助于降低 FP16 训练中的溢出和不稳定。
 upcast_layernorm: true
 
 ### QLoRA：4-bit 基础模型 + LoRA
+# 基座模型加载位宽；4-bit 显著节省显存，但仅量化冻结的基座权重，LoRA 参数仍参与训练。
 quantization_bit: 4
+# 量化后端；bitsandbytes 适用于当前 NVIDIA CUDA 环境，需确保其版本与 CUDA/驱动兼容。
 quantization_method: bitsandbytes
+# 4-bit 数据类型；NF4 通常比 FP4 更适合近似正态分布的预训练权重。
 quantization_type: nf4
+# 对量化常数再次量化以进一步节省显存，通常只带来很小的额外计算开销。
 double_quantization: true
 
-### SFT
+### SFT 与 LoRA
+# 训练阶段；sft 表示监督微调，而不是预训练、奖励模型或 DPO。
 stage: sft
+# 启用训练流程；若只做评估或推理，需要结合对应参数关闭此项。
 do_train: true
+# 参数高效微调方式；lora 只训练低秩适配器，适合单卡和有限显存环境。
 finetuning_type: lora
+# 为所有受支持的线性层注入 LoRA；效果覆盖面广，但比只训练 q_proj/v_proj 占用更多显存。
 lora_target: all
+# LoRA 低秩维度；越大容量越强、显存和 checkpoint 越大，8 是适合先建立基线的保守值。
 lora_rank: 8
+# LoRA 缩放系数；实际缩放约为 alpha/rank，此处为 2，可在调 rank 时同步评估。
 lora_alpha: 16
+# LoRA 分支的 dropout；小数据集可帮助正则化，数据量很大时可比较 0 或更低值。
 lora_dropout: 0.05
 
 ### 项目数据集
+# 数据集目录；容器内应包含 dataset_info.json，正式数据建议通过挂载提供而不是提交到 Git。
 dataset_dir: /workspace/data
+# dataset_info.json 中注册的数据集名称；当前 my_sft 只有两条结构样例，不能用于正式训练。
 dataset: my_sft
+# 对话模板；必须与基座模型匹配，否则 special tokens 和对话格式可能错误。
 template: qwen
+# 单条样本的最大 token 数；更长上下文显著增加显存和计算量，调整前先统计长度分布。
 cutoff_len: 1024
+# 是否把多条短样本拼接到固定长度序列；短样本较多时开启可提高吞吐，但会改变样本边界行为。
 packing: false
+# 每次运行都重建预处理缓存；调试数据时方便，数据稳定后建议设为 false 以缩短启动时间。
 overwrite_cache: true
+# 数据预处理并行进程数；可按 CPU 核数和内存调整，过高可能造成内存或 I/O 压力。
 preprocessing_num_workers: 4
+# DataLoader 子进程数；0 最稳且便于排错，数据读取成为瓶颈后再逐步提高。
 dataloader_num_workers: 0
 
-### 10% 验证集与评估
+### 验证与评估
+# 从训练集划分 10% 作为验证集；小数据集应保证验证样本数量足够且分布具有代表性。
 val_size: 0.1
+# 每张 GPU 的评估 batch size；评估不保存梯度，可在显存允许时适当提高以加快评估。
 per_device_eval_batch_size: 1
+# 按训练步数触发评估；需要与 eval_steps 配合使用。
 eval_strategy: steps
+# 每 100 个 optimizer step 评估一次；过于频繁会明显降低训练吞吐。
 eval_steps: 100
 
 ### 输出与 Checkpoint
+# LoRA adapter、checkpoint、训练状态和日志的输出目录；建议放在持久化磁盘并监控剩余空间。
 output_dir: /workspace/output/qwen25-3b-sft-lora
+# 禁止静默覆盖已有输出；开始新实验时建议使用带日期或实验名的新目录。
 overwrite_output_dir: false
+# 每 5 个 optimizer step 输出一次日志；排错时较有用，大规模训练可调大以减少日志开销。
 logging_steps: 5
+# 按训练步数保存 checkpoint；需要与 save_steps 配合使用。
 save_strategy: steps
+# 每 100 个 optimizer step 保存一次；启用 load_best_model_at_end 时应与 eval_steps 对齐或为其整数倍。
 save_steps: 100
+# 最多保留两个常规 checkpoint 以限制磁盘占用；最佳 checkpoint 可能会被额外保留。
 save_total_limit: 2
+# 训练结束时恢复验证指标最好的 checkpoint，而不是直接保留最后一步的权重。
 load_best_model_at_end: true
+# 选择最佳 checkpoint 使用的指标；eval_loss 是无额外任务指标时的通用选择。
 metric_for_best_model: eval_loss
+# eval_loss 越小越好，因此设为 false；改用 accuracy 等指标时通常应设为 true。
 greater_is_better: false
+# 训练结束后生成损失曲线，便于检查收敛、过拟合和异常波动。
 plot_loss: true
+# 不向外部实验平台上报；正式实验可改为 wandb 等，并注意不要上传敏感样本或密钥。
 report_to: none
 
-### 训练参数
+### 优化与训练步数
+# 每张 GPU 每次前向/反向使用 1 条样本；这是 T4 16 GB 上较稳妥的起点。
 per_device_train_batch_size: 1
+# 累积 16 次梯度后执行一次 optimizer step；单卡有效 batch size 为 1 × 16 = 16（未计多卡）。
 gradient_accumulation_steps: 16
+# LoRA 学习率；1e-4 是常见起点，正式训练应结合验证损失比较 5e-5～2e-4 等候选值。
 learning_rate: 1.0e-4
+# 完整遍历训练集 3 次；小数据集容易过拟合，应结合验证曲线和最佳 checkpoint 判断。
 num_train_epochs: 3
+# 余弦学习率衰减；会在 warmup 后平滑降低学习率。
 lr_scheduler_type: cosine
+# 前 5% optimizer steps 线性预热；短训练需确认预热后仍有足够的有效训练步数。
 warmup_ratio: 0.05
+# 用额外计算换取更低激活显存；T4 上通常值得开启，但会降低训练速度。
 gradient_checkpointing: true
+# 梯度裁剪阈值，用于缓解偶发梯度爆炸；排查不稳定时应同时观察 grad_norm。
 max_grad_norm: 1.0
 
-### Tesla T4 使用 FP16
+### Tesla T4 精度
+# T4 支持 FP16 Tensor Core，开启后可降低显存占用并提升吞吐。
 fp16: true
+# T4 不原生支持 BF16，因此必须关闭；在 Ampere（如 A100/RTX 30 系）及更新 GPU 上通常优先考虑 BF16。
 bf16: false
 
+# 分页 8-bit AdamW 优化器可降低优化器状态显存，并在显存压力下减少 OOM 风险。
 optim: paged_adamw_8bit
+# 固定随机种子以改善复现性；不同 CUDA 算子仍可能存在少量非确定性。
 seed: 42
