@@ -27,6 +27,7 @@ fi
 
 SSH_TARGET="${GPU_MACHINE_SSH_TARGET:-}"
 SSH_PORT="${GPU_MACHINE_SSH_PORT:-}"
+SSH_IDENTITY_FILE="${GPU_MACHINE_SSH_IDENTITY_FILE:-}"
 REMOTE_DIR="${GPU_MACHINE_REMOTE_DIR:-}"
 SSH_BIN="${GPU_MACHINE_SSH_BIN:-ssh}"
 
@@ -42,6 +43,15 @@ if [[ -n "$SSH_PORT" ]]; then
     printf 'GPU_MACHINE_SSH_PORT must be an integer from 1 to 65535.\n' >&2
     exit 2
   fi
+fi
+
+if [[ "${SSH_IDENTITY_FILE:0:1}" == \~ && "${SSH_IDENTITY_FILE:1:1}" == / ]]; then
+  SSH_IDENTITY_FILE="$HOME/${SSH_IDENTITY_FILE:2}"
+fi
+
+if [[ -n "$SSH_IDENTITY_FILE" && ! -f "$SSH_IDENTITY_FILE" ]]; then
+  printf 'GPU_MACHINE_SSH_IDENTITY_FILE does not exist: %s\n' "$SSH_IDENTITY_FILE" >&2
+  exit 2
 fi
 
 build_remote_command() {
@@ -73,6 +83,10 @@ ssh_args=(-- "$SSH_TARGET" "$remote_command")
 
 if [[ -n "$SSH_PORT" ]]; then
   ssh_args=(-p "$SSH_PORT" "${ssh_args[@]}")
+fi
+
+if [[ -n "$SSH_IDENTITY_FILE" ]]; then
+  ssh_args=(-o IdentitiesOnly=yes -i "$SSH_IDENTITY_FILE" "${ssh_args[@]}")
 fi
 
 if [[ "$#" -eq 0 ]]; then

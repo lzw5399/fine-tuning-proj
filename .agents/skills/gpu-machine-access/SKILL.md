@@ -27,6 +27,7 @@ Set these values in `.gpu-machine.env`:
 
 - `GPU_MACHINE_SSH_TARGET` (required): an SSH config alias, hostname, IP address, or `user@host` target.
 - `GPU_MACHINE_SSH_PORT` (optional): a non-default SSH port.
+- `GPU_MACHINE_SSH_IDENTITY_FILE` (optional): the SSH private key path, such as `~/.ssh/id_ed25519_github`.
 - `GPU_MACHINE_REMOTE_DIR` (optional): the directory to enter after connecting. Leave empty to use the remote login directory.
 - `GPU_MACHINE_SSH_PASSWORD` (optional): a local fallback for `sshpass`; prefer key-based authentication.
 
@@ -47,7 +48,7 @@ Run one command on the remote machine:
   'hostname && whoami && pwd'
 ```
 
-The helper loads the trusted local Bash configuration in `.gpu-machine.env`, enters `GPU_MACHINE_REMOTE_DIR` when configured, and then runs the requested command. If `GPU_MACHINE_SSH_PASSWORD` is set and `sshpass` is installed, it supplies the password through the environment. Otherwise, normal SSH authentication and host-key policy apply.
+The helper loads the trusted local Bash configuration in `.gpu-machine.env`, uses `GPU_MACHINE_SSH_IDENTITY_FILE` when configured, enters `GPU_MACHINE_REMOTE_DIR` when configured, and then runs the requested command. If `GPU_MACHINE_SSH_PASSWORD` is set and `sshpass` is installed, it supplies the password through the environment. Otherwise, normal SSH authentication and host-key policy apply.
 
 ## Operate Safely
 
